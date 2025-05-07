@@ -4,8 +4,8 @@ app = Flask(__name__)
 @app.route('/')
 def hello_world():
     return """Hello, World! from github  {
-  "db_user": "vamsi999",
-  "db_pass": "securepassword123",
+  "db_user": "vamsi",
+  "db_pass": "securepassword",
   "api_key": "your-api-key-value"
 } """
 
