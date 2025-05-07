@@ -81,9 +81,9 @@ steps:
 
           echo 'Starting Flask app...'
           cd gcsgithub-main
-          nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &"
+          nohup ../venv/bin/python app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
-  # Step 5: Create or update MIG (Zonal, fixed)
+  # Step 7: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create or Update MIG'
     entrypoint: 'bash'
@@ -107,7 +107,7 @@ steps:
             --zone=asia-east1-b
         fi
 
-  # Step 6: Firewall rule
+  # Step 8: Firewall rule
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Firewall'
     entrypoint: 'bash'
@@ -125,7 +125,7 @@ steps:
           echo "Firewall rule already exists"
         fi
 
-  # Step 7: Create regional health check
+  # Step 9: Create regional health check
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Regional Health Check'
     entrypoint: 'bash'
@@ -146,7 +146,7 @@ steps:
           echo "Regional health check already exists."
         fi
 
-  # Step 8: Attach health check
+  # Step 10: Attach health check
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Autohealing'
     entrypoint: 'bash'
@@ -159,7 +159,7 @@ steps:
           --initial-delay=300s \
           --project=enhub-cloud-interns
 
-  # Step 9: Enable autoscaling
+  # Step 11: Enable autoscaling
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Enable Autoscaling'
     entrypoint: 'bash'
@@ -174,7 +174,7 @@ steps:
           --cool-down-period=60s \
           --project=enhub-cloud-interns
 
-  # Step 10: Reserve a static external IP (Zonal)
+  # Step 12: Reserve a static external IP (Zonal)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Reserve Static IP'
     entrypoint: 'bash'
@@ -189,7 +189,7 @@ steps:
           echo "Static IP already exists."
         fi
 
-  # Step 11: Create global backend service with EXTERNAL_MANAGED
+  # Step 13: Create global backend service with EXTERNAL_MANAGED
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
     entrypoint: 'bash'
@@ -208,60 +208,21 @@ steps:
           echo "Global backend service already exists."
         fi
 
-
-
-  # Step 11.5: Set named port to 8080 on MIG
+  # Step 14: Attach MIG to global backend service
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Set Named Port to 8080'
+    id: 'Attach MIG to Global Backend'
+    entrypoint: 'bash'
     args:
-      [
-        'compute', 'instance-groups', 'set-named-ports', 'vamsi-mig',
-        '--zone=asia-east1-b',
-        '--named-ports=http:8080',
-        '--project=enhub-cloud-interns'
-      ]
-
- # Step 12.1: Attach MIG to global backend
-  - name: gcr.io/cloud-builders/gcloud
-    id: set-named-port
-    entrypoint: bash
-    args:
-      - -c
+      - '-c'
       - |
-        gcloud compute instance-groups set-named-ports vamsi-mig \
-          --named-ports=http:8080 \
-          --zone=asia-east1-b \
-          --project=enhub-cloud-interns
-
-  - name: gcr.io/cloud-builders/gcloud
-    id: add-backend
-    entrypoint: bash
-    args:
-      - -c
-      - |
+        echo "Attaching MIG to global backend service..."
         gcloud compute backend-services add-backend vamsi-backend-service \
           --instance-group=vamsi-mig \
           --instance-group-zone=asia-east1-b \
-          --balancing-mode=UTILIZATION \
-          --max-utilization=0.8 \
-          --capacity-scaler=1.0 \
           --global \
           --project=enhub-cloud-interns
 
-  - name: gcr.io/cloud-builders/gcloud
-    id: update-backend-port-name
-    entrypoint: bash
-    args:
-      - -c
-      - |
-        gcloud compute backend-services update-backend vamsi-backend-service \
-          --backend=group=projects/enhub-cloud-interns/zones/asia-east1-b/instanceGroups/vamsi-mig \
-          --port-name=http \
-          --global \
-          --project=enhub-cloud-interns
-
-
-  # Step 13: Create global URL map
+  # Step 15: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global URL Map'
     entrypoint: 'bash'
@@ -277,7 +238,7 @@ steps:
           echo "Global URL map already exists."
         fi
 
-  # Step 14: Create global target HTTP proxy
+  # Step 16: Create global target HTTP proxy
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Target Proxy'
     entrypoint: 'bash'
@@ -293,7 +254,7 @@ steps:
           echo "Global HTTP target proxy already exists."
         fi
 
-  # Step 15: Create global forwarding rule with EXTERNAL_MANAGED scheme
+  # Step 17: Create global forwarding rule with EXTERNAL_MANAGED scheme
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Forwarding Rule'
     entrypoint: 'bash'
