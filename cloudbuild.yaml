@@ -7,8 +7,8 @@ steps:
       - '-c'
       - |
         VERSION_TAG="v-$(date +%Y%m%d-%H%M%S)"
-        echo "VERSION_TAG=$$VERSION_TAG" > /workspace/version.env
-        echo "Generated version: $$VERSION_TAG"
+        echo "VERSION_TAG=$VERSION_TAG" > /workspace/version.env
+        echo "Generated version: $VERSION_TAG"
 
   # Step 1: Download ZIP file from GitHub
   - name: 'gcr.io/cloud-builders/curl'
@@ -36,7 +36,7 @@ steps:
       - '-c'
       - |
         source /workspace/version.env
-        gsutil cp source.zip gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip
+        gsutil cp source.zip gs://vamsi-artifact-bucket/$VERSION_TAG/source.zip
 
   # Step 6: Create Instance Template (Regional)
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -46,13 +46,13 @@ steps:
       - '-c'
       - |
         source /workspace/version.env
-        gcloud compute instance-templates create vamsi-template-$$VERSION_TAG \
+        gcloud compute instance-templates create vamsi-template-$VERSION_TAG \
           --machine-type=e2-medium \
           --region=asia-east1 \
           --image-family=debian-12 \
           --image-project=debian-cloud \
           --tags=http-server,https-server,allow-8080 \
-          --metadata=VERSION_TAG=$$VERSION_TAG \
+          --metadata=VERSION_TAG=$VERSION_TAG \
           --metadata=startup-script='#!/bin/bash
           echo "🟢 Startup script started."
           VERSION_TAG=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERSION_TAG)
@@ -75,8 +75,7 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &'
 
-
-    # Step 7: Create or update MIG (Zonal, fixed)
+  # Step 7: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create or Update MIG'
     entrypoint: 'bash'
@@ -88,13 +87,13 @@ steps:
           echo "Creating MIG..."
           gcloud compute instance-groups managed create vamsi-mig \
             --base-instance-name=vamsi-instance \
-            --template=vamsi-template-$$VERSION_TAG \
+            --template=vamsi-template-$VERSION_TAG \
             --size=1 \
             --zone=asia-east1-b
         else
           echo "Updating MIG with new template..."
           gcloud compute instance-groups managed set-instance-template vamsi-mig \
-            --template=vamsi-template-$$VERSION_TAG \
+            --template=vamsi-template-$VERSION_TAG \
             --zone=asia-east1-b
           gcloud compute instance-groups managed rolling-action restart vamsi-mig \
             --zone=asia-east1-b
@@ -270,8 +269,6 @@ steps:
         else
           echo "Global forwarding rule already exists."
         fi
-
-
 
 options:
   logging: CLOUD_LOGGING_ONLY
