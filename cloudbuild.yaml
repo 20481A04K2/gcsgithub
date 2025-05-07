@@ -195,7 +195,96 @@ steps:
           echo "Static IP already exists."
         fi
 
-# Continue other steps similarly...
+  # Step 13: Create global backend service with EXTERNAL_MANAGED
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute backend-services create vamsi-backend-service \
+            --load-balancing-scheme=EXTERNAL_MANAGED \
+            --protocol=HTTP \
+            --port-name=http \
+            --health-checks=vamsi-health-check \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global backend service already exists."
+        fi
+
+  # Step 14: Attach MIG to global backend service
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Attach MIG to Global Backend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Attaching MIG to global backend service..."
+        gcloud compute backend-services add-backend vamsi-backend-service \
+          --instance-group=vamsi-mig \
+          --instance-group-zone=asia-east1-b \
+          --global \
+          --project=enhub-cloud-interns
+
+  # Step 15: Create global URL map
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global URL Map'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute url-maps describe vamsi-url-map --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute url-maps create vamsi-url-map \
+            --default-service=vamsi-backend-service \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global URL map already exists."
+        fi
+
+  # Step 16: Create global target HTTP proxy
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Target Proxy'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute target-http-proxies describe vamsi-target-proxy --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute target-http-proxies create vamsi-target-proxy \
+            --url-map=vamsi-url-map \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global HTTP target proxy already exists."
+        fi
+
+  # Step 17: Create global forwarding rule with EXTERNAL_MANAGED scheme
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Forwarding Rule'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute forwarding-rules describe vamsi-forwarding-rule --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute addresses create vamsi-global-ip \
+            --ip-version=IPV4 \
+            --global \
+            --project=enhub-cloud-interns || echo "IP may already exist."
+
+          gcloud compute forwarding-rules create vamsi-forwarding-rule \
+            --address=vamsi-global-ip \
+            --global \
+            --target-http-proxy=vamsi-target-proxy \
+            --ports=80 \
+            --load-balancing-scheme=EXTERNAL_MANAGED \
+            --project=enhub-cloud-interns
+        else
+          echo "Global forwarding rule already exists."
+        fi
+
+
 
 options:
   logging: CLOUD_LOGGING_ONLY
