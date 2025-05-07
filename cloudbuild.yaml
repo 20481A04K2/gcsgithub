@@ -46,13 +46,13 @@ steps:
       - '-c'
       - |
         source /workspace/version.env
-        gcloud compute instance-templates create vamsi-template-$VERSION_TAG \
+        gcloud compute instance-templates create vamsi-template-$_VERSION_TAG \
           --machine-type=e2-medium \
           --region=asia-east1 \
           --image-family=debian-12 \
           --image-project=debian-cloud \
           --tags=http-server,https-server,allow-8080 \
-          --metadata=VERSION_TAG=$VERSION_TAG \
+          --metadata=VERSION_TAG=$_VERSION_TAG \
           --metadata=startup-script='#!/bin/bash
           echo "🟢 Startup script started."
           VERSION_TAG=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERSION_TAG)
@@ -87,13 +87,13 @@ steps:
           echo "Creating MIG..."
           gcloud compute instance-groups managed create vamsi-mig \
             --base-instance-name=vamsi-instance \
-            --template=vamsi-template-$VERSION_TAG \
+            --template=vamsi-template-$_VERSION_TAG \
             --size=1 \
             --zone=asia-east1-b
         else
           echo "Updating MIG with new template..."
           gcloud compute instance-groups managed set-instance-template vamsi-mig \
-            --template=vamsi-template-$VERSION_TAG \
+            --template=vamsi-template-$_VERSION_TAG \
             --zone=asia-east1-b
           gcloud compute instance-groups managed rolling-action restart vamsi-mig \
             --zone=asia-east1-b
@@ -273,3 +273,5 @@ steps:
 options:
   logging: CLOUD_LOGGING_ONLY
   defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+substitutions:
+  _VERSION_TAG: "v-$(date +%Y%m%d-%H%M%S)"
