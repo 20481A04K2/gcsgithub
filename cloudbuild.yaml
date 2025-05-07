@@ -17,7 +17,7 @@ steps:
     args:
       - '-c'
       - |
-        curl -L https://github.com/20481A04K2/loadbalancergithub/archive/refs/heads/main.zip -o source.zip
+        curl -L https://github.com/20481A04K2/gcsgithub/archive/refs/heads/main.zip -o source.zip
 
   # Step 2: Show ZIP file size
   - name: 'gcr.io/cloud-builders/gcloud'
