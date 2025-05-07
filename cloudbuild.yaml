@@ -216,16 +216,21 @@ steps:
       - '-c'
       - |
           MIG_URL="https://compute.googleapis.com/compute/v1/projects/enhub-cloud-interns/zones/asia-east1-b/instanceGroups/vamsi-mig"
-          if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns \
-            --format="value(backends[].group)" | grep -Fxq "$$MIG_URL"; then
+          echo "Checking if MIG is already attached..."
+          ATTACHED_GROUPS=$(gcloud compute backend-services describe vamsi-backend-service \
+            --global \
+            --project=enhub-cloud-interns \
+            --format="value(backends[].group)")
+          
+          if echo "$$ATTACHED_GROUPS" | grep -Fxq "$$MIG_URL"; then
+            echo "MIG already attached to backend service."
+          else
             echo "Attaching MIG to global backend service..."
             gcloud compute backend-services add-backend vamsi-backend-service \
               --instance-group=vamsi-mig \
               --instance-group-zone=asia-east1-b \
               --global \
               --project=enhub-cloud-interns
-          else
-            echo "MIG already attached to backend service."
           fi
 
 
