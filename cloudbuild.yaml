@@ -189,24 +189,25 @@ steps:
           echo "Static IP already exists."
         fi
 
-# Step 11: Create global backend service with EXTERNAL_MANAGED
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
-        gcloud compute backend-services create vamsi-backend-service \
-          --load-balancing-scheme=EXTERNAL_MANAGED \
-          --protocol=HTTP \
-          --port-name=http \
-          --health-checks=vamsi-health-check \
-          --global \
-          --project=enhub-cloud-interns
-      else
-        echo "Global backend service already exists."
-      fi
+  # Step 11: Create global backend service with EXTERNAL_MANAGED
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute backend-services create vamsi-backend-service \
+            --load-balancing-scheme=EXTERNAL_MANAGED \
+            --protocol=HTTP \
+            --port-name=http \
+            --health-checks=vamsi-health-check \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global backend service already exists."
+        fi
+
 
 
 # Step 12: Attach MIG to global backend service
