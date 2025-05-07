@@ -1,106 +1,300 @@
 steps:
+  # Step 0: Generate dynamic version tag
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Generate Version'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        VERSION_TAG="v-$(date +%Y%m%d-%H%M%S)"
+        echo "VERSION_TAG=$$VERSION_TAG" > /workspace/version.env
+        echo "Generated version: $$VERSION_TAG"
+
   # Step 1: Check/create Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        if ! gcloud artifacts repositories describe vamsi-artifact-repo --location=asia-east1 --project=enhub-cloud-interns; then
-          echo "Repository doesn't exist. Creating now."
-          gcloud artifacts repositories create vamsi-artifact-repo --repository-format=docker --location=asia-east1 --project=enhub-cloud-interns
-        else
-          echo "Repository already exists."
+        if ! gcloud artifacts repositories describe vamsi-zip-repo --location=asia-east1 --project=enhub-cloud-interns; then
+          gcloud artifacts repositories create vamsi-zip-repo \
+            --repository-format=generic \
+            --location=asia-east1 \
+            --project=enhub-cloud-interns
         fi
 
-  # Step 2: Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest', '.']
+  # Step 2: Download ZIP file from GitHub
+  - name: 'gcr.io/cloud-builders/curl'
+    id: 'Download ZIP from GitHub'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        curl -L https://github.com/20481A04K2/loadbalancergithub/archive/refs/heads/main.zip -o source.zip
 
-  # Step 3: Push Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest']
-
-  # Step 4: Delete existing VM
+  # Step 3: Authenticate with Google Cloud
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Authenticate'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        gsutil cp gs://vamsi-artifact-bucket/enhub-cloud-interns-004fbd59b047.json /workspace/key.json
+        gcloud auth activate-service-account --key-file=/workspace/key.json
+
+  # Step 4: Show ZIP file size
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Show ZIP File Size'
+    entrypoint: '/bin/sh'
+    args:
+      - '-c'
+      - |
+        du -sh source.zip
+
+  # Step 5: Upload ZIP to Artifact Registry
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Upload to Artifact Registry'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "Deleting VM if it exists..."
-        gcloud compute instances delete my-vm-instance --zone=asia-east1-b --quiet || true
+        source /workspace/version.env
+        gcloud artifacts generic upload \
+          --project="enhub-cloud-interns" \
+          --location="asia-east1" \
+          --repository="vamsi-zip-repo" \
+          --package="source-package" \
+          --version="$$VERSION_TAG" \
+          --source="source.zip"
 
-  # Step 5: Create new VM
+  # Step 6: Create Instance Template (Regional)
   - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - instances
-      - create
-      - my-vm-instance
-      - --zone=asia-east1-b
-      - --machine-type=e2-micro
-      - --image-family=debian-11
-      - --image-project=debian-cloud
-      - --boot-disk-size=10GB
-      - --tags=http-server,https-server
-      - --scopes=https://www.googleapis.com/auth/cloud-platform
-      - --service-account=1064351983714-compute@developer.gserviceaccount.com
-      - --project=enhub-cloud-interns
-
-  # Step 6: SSH to install Docker
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command=sudo apt-get update && sudo apt-get install -y docker.io
-
-  # Step 7: Pull and save Docker image to tar
-  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Create Instance Template'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        docker pull asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
-        docker save -o /workspace/my-app.tar asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
+        source /workspace/version.env
+        gcloud compute instance-templates create vamsi-template-$$VERSION_TAG \
+          --machine-type=e2-medium \
+          --region=asia-east1 \
+          --image-family=debian-12 \
+          --image-project=debian-cloud \
+          --tags=http-server,https-server,allow-8080 \
+          --metadata=startup-script='#!/bin/bash
+          echo "Startup script started."
+          apt-get update -y
+          apt-get install -y unzip curl python3-pip python3.11-venv
+          mkdir -p /home/sajja_vamsi/my-app
+          chown -R sajja_vamsi:sajja_vamsi /home/sajja_vamsi/my-app
+          cd /home/sajja_vamsi/my-app
+          echo "Downloading ZIP..."
+          curl -L https://github.com/20481A04K2/loadbalancergithub/archive/refs/heads/main.zip -o source.zip
+          echo "Unzipping..."
+          unzip source.zip -d . 
+          cd loadbalancergithub-main || exit
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install flask
+          nohup python3 app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/app.log 2>&1 &'
 
-  # Step 8: Copy tar to VM
+  # Step 7: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - scp
-      - /workspace/my-app.tar
-      - sajja_vamsi@my-vm-instance:~
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-
-  # Step 9: SSH into VM, load and run container
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - compute
-      - ssh
-      - sajja_vamsi@my-vm-instance
-      - --zone=asia-east1-b
-      - --project=enhub-cloud-interns
-      - --command=sudo docker load -i my-app.tar && sudo docker run -d -p 8080:8080 asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest
-
-  # ✅ Step 10: Check app and fetch secret version 1
-  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create or Update MIG'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "Checking if application is running on port 8080..."
-        if gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns --command='curl -s http://localhost:8080' &>/dev/null; then
-          echo "Application is running. Fetching secret..."
-          gcloud compute ssh sajja_vamsi@my-vm-instance --zone=asia-east1-b --project=enhub-cloud-interns --command='gcloud secrets versions access 1 --secret=my-app-secret --project=enhub-cloud-interns'
+        source /workspace/version.env
+        if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
+          echo "Creating MIG..."
+          gcloud compute instance-groups managed create vamsi-mig \
+            --base-instance-name=vamsi-instance \
+            --template=vamsi-template-$$VERSION_TAG \
+            --size=1 \
+            --zone=asia-east1-b
         else
-          echo "Application is NOT running. Skipping secret fetch."
+          echo "Updating MIG with new template..."
+          gcloud compute instance-groups managed set-instance-template vamsi-mig \
+            --template=vamsi-template-$$VERSION_TAG \
+            --zone=asia-east1-b
+          gcloud compute instance-groups managed rolling-action restart vamsi-mig \
+            --zone=asia-east1-b
         fi
 
-images:
-  - 'asia-east1-docker.pkg.dev/enhub-cloud-interns/vamsi-artifact-repo/my-app:latest'
+  # Step 8: Firewall rule
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Firewall'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute firewall-rules describe allow-8080 --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute firewall-rules create allow-8080 \
+            --allow tcp:8080 \
+            --target-tags=allow-8080 \
+            --direction=INGRESS \
+            --priority=1000 \
+            --project=enhub-cloud-interns
+        else
+          echo "Firewall rule already exists"
+        fi
+
+  # Step 9: Create regional health check
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Regional Health Check'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute health-checks describe vamsi-health-check --region=asia-east1 --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute health-checks create http vamsi-health-check \
+            --port=8080 \
+            --request-path="/" \
+            --check-interval=15s \
+            --timeout=10s \
+            --healthy-threshold=2 \
+            --unhealthy-threshold=3 \
+            --region=asia-east1 \
+            --project=enhub-cloud-interns
+        else
+          echo "Regional health check already exists."
+        fi
+
+  # Step 10: Attach health check
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Autohealing'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud compute instance-groups managed update vamsi-mig \
+          --zone=asia-east1-b \
+          --health-check=vamsi-health-check \
+          --initial-delay=300s \
+          --project=enhub-cloud-interns
+
+  # Step 11: Enable autoscaling
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Enable Autoscaling'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud compute instance-groups managed set-autoscaling vamsi-mig \
+          --zone=asia-east1-b \
+          --min-num-replicas=1 \
+          --max-num-replicas=5 \
+          --target-cpu-utilization=0.60 \
+          --cool-down-period=60s \
+          --project=enhub-cloud-interns
+
+  # Step 12: Reserve a static external IP (Zonal)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Reserve Static IP'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute addresses describe vamsi-zonal-ip --region=asia-east1 --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute addresses create vamsi-zonal-ip \
+            --region=asia-east1 \
+            --project=enhub-cloud-interns
+        else
+          echo "Static IP already exists."
+        fi
+
+  # Step 13: Create global backend service with EXTERNAL_MANAGED
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute backend-services create vamsi-backend-service \
+            --load-balancing-scheme=EXTERNAL_MANAGED \
+            --protocol=HTTP \
+            --port-name=http \
+            --health-checks=vamsi-health-check \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global backend service already exists."
+        fi
+
+  # Step 14: Attach MIG to global backend service
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Attach MIG to Global Backend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Attaching MIG to global backend service..."
+        gcloud compute backend-services add-backend vamsi-backend-service \
+          --instance-group=vamsi-mig \
+          --instance-group-zone=asia-east1-b \
+          --global \
+          --project=enhub-cloud-interns
+
+  # Step 15: Create global URL map
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global URL Map'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute url-maps describe vamsi-url-map --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute url-maps create vamsi-url-map \
+            --default-service=vamsi-backend-service \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global URL map already exists."
+        fi
+
+  # Step 16: Create global target HTTP proxy
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Target Proxy'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute target-http-proxies describe vamsi-target-proxy --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute target-http-proxies create vamsi-target-proxy \
+            --url-map=vamsi-url-map \
+            --global \
+            --project=enhub-cloud-interns
+        else
+          echo "Global HTTP target proxy already exists."
+        fi
+
+  # Step 17: Create global forwarding rule with EXTERNAL_MANAGED scheme
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create Global Forwarding Rule'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute forwarding-rules describe vamsi-forwarding-rule --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+          gcloud compute addresses create vamsi-global-ip \
+            --ip-version=IPV4 \
+            --global \
+            --project=enhub-cloud-interns || echo "IP may already exist."
+
+          gcloud compute forwarding-rules create vamsi-forwarding-rule \
+            --address=vamsi-global-ip \
+            --global \
+            --target-http-proxy=vamsi-target-proxy \
+            --ports=80 \
+            --load-balancing-scheme=EXTERNAL_MANAGED \
+            --project=enhub-cloud-interns
+        else
+          echo "Global forwarding rule already exists."
+        fi
+
+
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
