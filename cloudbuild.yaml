@@ -216,9 +216,8 @@ steps:
       - '-c'
       - |
           MIG_URL="https://compute.googleapis.com/compute/v1/projects/enhub-cloud-interns/zones/asia-east1-b/instanceGroups/vamsi-mig"
-          echo "Checking if MIG is already attached..."
           if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns \
-            --format="value(backends.group)" | grep -Fx "$$MIG_URL" > /dev/null; then
+            --format="value(backends[].group)" | grep -Fxq "$$MIG_URL"; then
             echo "Attaching MIG to global backend service..."
             gcloud compute backend-services add-backend vamsi-backend-service \
               --instance-group=vamsi-mig \
@@ -228,6 +227,7 @@ steps:
           else
             echo "MIG already attached to backend service."
           fi
+
 
   # Step 15: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
