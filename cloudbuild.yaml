@@ -83,12 +83,6 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
-
-
-
-
-
-
   # Step 5: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create or Update MIG'
@@ -131,7 +125,7 @@ steps:
           echo "Firewall rule already exists"
         fi
 
-  # Step 7: Regional health check
+  # Step 7: Create regional health check
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Regional Health Check'
     entrypoint: 'bash'
@@ -180,7 +174,7 @@ steps:
           --cool-down-period=60s \
           --project=enhub-cloud-interns
 
-  # Step 10: Reserve static external IP (Zonal)
+  # Step 10: Reserve a static external IP (Zonal)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Reserve Static IP'
     entrypoint: 'bash'
@@ -195,7 +189,7 @@ steps:
           echo "Static IP already exists."
         fi
 
-  # Step 13: Create global backend service with EXTERNAL_MANAGED
+  # Step 11: Create global backend service with EXTERNAL_MANAGED
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
     entrypoint: 'bash'
@@ -214,7 +208,7 @@ steps:
           echo "Global backend service already exists."
         fi
 
-  # Step 14: Attach MIG to global backend service
+  # Step 12: Attach MIG to global backend service
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Attach MIG to Global Backend'
     entrypoint: 'bash'
@@ -228,7 +222,7 @@ steps:
           --global \
           --project=enhub-cloud-interns
 
-  # Step 15: Create global URL map
+  # Step 13: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global URL Map'
     entrypoint: 'bash'
@@ -244,7 +238,7 @@ steps:
           echo "Global URL map already exists."
         fi
 
-  # Step 16: Create global target HTTP proxy
+  # Step 14: Create global target HTTP proxy
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Target Proxy'
     entrypoint: 'bash'
@@ -260,7 +254,7 @@ steps:
           echo "Global HTTP target proxy already exists."
         fi
 
-  # Step 17: Create global forwarding rule with EXTERNAL_MANAGED scheme
+  # Step 15: Create global forwarding rule with EXTERNAL_MANAGED scheme
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Global Forwarding Rule'
     entrypoint: 'bash'
