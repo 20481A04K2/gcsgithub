@@ -189,38 +189,43 @@ steps:
           echo "Static IP already exists."
         fi
 
-  # Step 11: Create global backend service with EXTERNAL_MANAGED
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
-          gcloud compute backend-services create vamsi-backend-service \
-            --load-balancing-scheme=EXTERNAL_MANAGED \
-            --protocol=HTTP \
-            --port-name=http \
-            --health-checks=vamsi-health-check \
-            --global \
-            --project=enhub-cloud-interns
-        else
-          echo "Global backend service already exists."
-        fi
-
-  # Step 12: Attach MIG to global backend service
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Attach MIG to Global Backend'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "Attaching MIG to global backend service..."
-        gcloud compute backend-services add-backend vamsi-backend-service \
-          --instance-group=vamsi-mig \
-          --instance-group-zone=asia-east1-b \
+# Step 11: Create global backend service with EXTERNAL_MANAGED
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Create Global Backend Service (EXTERNAL_MANAGED)'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      if ! gcloud compute backend-services describe vamsi-backend-service --global --project=enhub-cloud-interns > /dev/null 2>&1; then
+        gcloud compute backend-services create vamsi-backend-service \
+          --load-balancing-scheme=EXTERNAL_MANAGED \
+          --protocol=HTTP \
+          --port-name=http \
+          --health-checks=vamsi-health-check \
           --global \
           --project=enhub-cloud-interns
+      else
+        echo "Global backend service already exists."
+      fi
+
+
+# Step 12: Attach MIG to global backend service
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Attach MIG to Global Backend'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "Attaching MIG to global backend service..."
+      gcloud compute backend-services add-backend vamsi-backend-service \
+        --instance-group=vamsi-mig \
+        --instance-group-zone=asia-east1-b \
+        --balancing-mode=UTILIZATION \
+        --max-utilization=0.8 \
+        --port-name=http \
+        --global \
+        --project=enhub-cloud-interns
+
 
   # Step 13: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
