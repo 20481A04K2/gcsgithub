@@ -221,23 +221,36 @@ steps:
         '--project=enhub-cloud-interns'
       ]
 
-  # Step 12: Attach MIG to global backend service with port name and balancing settings
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Attach MIG to Global Backend'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "Attaching MIG to global backend service with port and balancing settings..."
-        gcloud compute backend-services add-backend vamsi-backend-service \
-          --instance-group=vamsi-mig \
-          --instance-group-zone=asia-east1-b \
-          --balancing-mode=UTILIZATION \
-          --max-utilization=0.8 \
-          --port-name=http \
-          --capacity-scaler=1.0 \
-          --global \
-          --project=enhub-cloud-interns
+ # Step 12.1: Attach MIG to global backend
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Attach MIG to Global Backend'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "Attaching MIG to global backend service..."
+      gcloud compute backend-services add-backend vamsi-backend-service \
+        --instance-group=vamsi-mig \
+        --instance-group-zone=asia-east1-b \
+        --balancing-mode=UTILIZATION \
+        --max-utilization=0.8 \
+        --capacity-scaler=1.0 \
+        --global \
+        --project=enhub-cloud-interns
+# Step 12.2: Update backend with port-name
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Set Backend Port Name'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "Setting port name on backend..."
+      gcloud compute backend-services update-backend vamsi-backend-service \
+        --backend=group=projects/enhub-cloud-interns/zones/asia-east1-b/instanceGroups/vamsi-mig \
+        --port-name=http \
+        --global \
+        --project=enhub-cloud-interns
+
 
   # Step 13: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
