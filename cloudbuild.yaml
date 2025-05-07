@@ -52,15 +52,18 @@ steps:
           --image-family=debian-12 \
           --image-project=debian-cloud \
           --tags=http-server,https-server,allow-8080 \
+          --metadata=VERSION_TAG=$$VERSION_TAG \
           --metadata=startup-script='#!/bin/bash
           echo "🟢 Startup script started."
+          VERSION_TAG=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERSION_TAG)
+          echo "📦 Using version tag: $VERSION_TAG"
           apt-get update -y
           apt-get install -y unzip curl python3-pip python3.11-venv
           mkdir -p /home/sajja_vamsi/my-app
           cd /home/sajja_vamsi/my-app
           chown -R sajja_vamsi:sajja_vamsi /home/sajja_vamsi/my-app
           echo "📦 Downloading ZIP from GCS..."
-          gsutil cp gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip source.zip
+          gsutil cp gs://vamsi-artifact-bucket/$VERSION_TAG/source.zip source.zip
           echo "🗜️ Unzipping..."
           unzip -o source.zip -d .
           echo "🐍 Setting up Python virtual environment..."
@@ -71,6 +74,7 @@ steps:
           echo "🚀 Starting Flask app..."
           cd gcsgithub-main
           nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &'
+
 
     # Step 7: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
