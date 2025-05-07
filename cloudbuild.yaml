@@ -38,7 +38,7 @@ steps:
         source /workspace/version.env
         gsutil cp source.zip gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip
 
-  # Step 4: Create Instance Template (Regional)
+# Step 4: Create Instance Template (Regional)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Instance Template'
     entrypoint: 'bash'
@@ -52,7 +52,6 @@ steps:
           --image-family=debian-12 \
           --image-project=debian-cloud \
           --tags=http-server,https-server,allow-8080 \
-          --metadata=VERSION_TAG=$$VERSION_TAG \
           --metadata=startup-script='#!/bin/bash
           echo "🟢 Startup script started."
           VERSION_TAG=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/attributes/VERSION_TAG)
@@ -74,6 +73,7 @@ steps:
           echo "🚀 Starting Flask app..."
           cd gcsgithub-main
           nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &'
+
 
   # Step 5: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
