@@ -38,8 +38,7 @@ steps:
         source /workspace/version.env
         gsutil cp source.zip gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip
 
-steps:
-  # Step: Create Instance Template (Regional)
+  # Step 2: Create Instance Template (Regional)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create Instance Template'
     entrypoint: 'bash'
@@ -50,7 +49,7 @@ steps:
 
           # Get the latest file from GCS bucket
           LATEST_FILE=$(gsutil ls -l gs://vamsi-artifact-bucket/** | grep -v '/$' | sort -k 2 | tail -n 1 | awk '{print $NF}')
-          VERSION_TAG=$(basename $LATEST_FILE)
+          VERSION_TAG=$(basename $$LATEST_FILE)
 
           # Create instance template with the startup script
           gcloud compute instance-templates create vamsi-template-$$VERSION_TAG \
@@ -80,7 +79,6 @@ steps:
             echo "Starting Flask app..."
             cd gcsgithub-main
             nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &'
-
 
 
 
