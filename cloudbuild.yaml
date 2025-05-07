@@ -38,14 +38,20 @@ steps:
         source /workspace/version.env
         gsutil cp source.zip gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip
 
-  # Step 4: Create Instance Template (Regional)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Create Instance Template'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
+# Step: Create Instance Template (Regional)
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Create Instance Template'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
         source /workspace/version.env
+        
+        # Get the latest file from GCS bucket
+        LATEST_FILE=$(gsutil ls -l gs://vamsi-artifact-bucket/** | grep -v '/$' | sort -k 2 | tail -n 1 | awk '{print $NF}')
+        VERSION_TAG=$(basename $LATEST_FILE)
+
+        # Create instance template with the startup script
         gcloud compute instance-templates create vamsi-template-$$VERSION_TAG \
           --machine-type=e2-medium \
           --region=asia-east1 \
@@ -61,18 +67,19 @@ steps:
           mkdir -p /home/sajja_vamsi/my-app
           cd /home/sajja_vamsi/my-app
           chown -R sajja_vamsi:sajja_vamsi /home/sajja_vamsi/my-app
-          echo " Downloading ZIP from GCS..."
+          echo "Downloading ZIP from GCS..."
           gsutil cp gs://vamsi-artifact-bucket/$$VERSION_TAG/source.zip source.zip
-          echo " Unzipping..."
+          echo "Unzipping..."
           unzip -o source.zip -d .
-          echo " Setting up Python virtual environment..."
+          echo "Setting up Python virtual environment..."
           python3 -m venv venv
           source venv/bin/activate
-          echo " Installing Flask..."
+          echo "Installing Flask..."
           pip install flask
-          echo " Starting Flask app..."
+          echo "Starting Flask app..."
           cd gcsgithub-main
           nohup ../venv/bin/python app.py > /home/sajja_vamsi/my-app/app.log 2>&1 &'
+
 
 
 
