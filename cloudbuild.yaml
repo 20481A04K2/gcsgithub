@@ -90,27 +90,28 @@ steps:
   args:
     - -c
     - |
-      source /workspace/version.env
-      if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
-        echo "Creating MIG..."
-        gcloud compute instance-groups managed create vamsi-mig \
-          --base-instance-name=vamsi-instance \
-          --template=vamsi-template-$$VERSION_TAG \
-          --size=5 \
-          --zone=asia-east1-b
-      else
-        echo "Replacing all MIG instances with new template..."
-        gcloud compute instance-groups managed set-instance-template vamsi-mig \
-          --template=vamsi-template-$$VERSION_TAG \
-          --zone=asia-east1-b
+        source /workspace/version.env
+        if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
+          echo "Creating MIG..."
+          gcloud compute instance-groups managed create vamsi-mig \
+            --base-instance-name=vamsi-instance \
+            --template=vamsi-template-$$VERSION_TAG \
+            --size=5 \
+            --zone=asia-east1-b
+        else
+          echo "Replacing all MIG instances with new template..."
+          gcloud compute instance-groups managed set-instance-template vamsi-mig \
+            --template=vamsi-template-$$VERSION_TAG \
+            --zone=asia-east1-b
 
-        gcloud compute instance-groups managed rolling-action replace vamsi-mig \
-          --zone=asia-east1-b \
-          --version=template=vamsi-template-$$VERSION_TAG \
-          --type=proactive \
-          --max-surge=0 \
-          --max-unavailable=5 \
-          --min-ready=0s
+          gcloud compute instance-groups managed rolling-action replace vamsi-mig \
+            --zone=asia-east1-b \
+            --version=template=vamsi-template-$$VERSION_TAG \
+            --type=proactive \
+            --max-surge=0 \
+            --max-unavailable=5 \
+            --min-ready=0s
+
 
 
 
