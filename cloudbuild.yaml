@@ -88,7 +88,7 @@ steps:
     id: 'Create or Replace All MIG Instances'
     entrypoint: 'bash'
     args:
-      - -c
+      - '-c'
       - |
         source /workspace/version.env
         if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
