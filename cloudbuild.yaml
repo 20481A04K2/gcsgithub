@@ -1,5 +1,5 @@
 steps:
-  # Step 0: Generate dynamic version tag
+ # Step 0: Generate dynamic version tag
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Generate Version'
     entrypoint: 'bash'
@@ -83,20 +83,22 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
-# Step 5: Update MIG with new template (no creation logic)
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'Update MIG Only'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      source /workspace/version.env
-      echo "Updating MIG with new template..."
-      gcloud compute instance-groups managed set-instance-template vamsi-mig \
-        --template=vamsi-template-$$VERSION_TAG \
-        --zone=asia-east1-b
-      gcloud compute instance-groups managed rolling-action restart vamsi-mig \
-        --zone=asia-east1-b
+
+
+  # Step 5: Update MIG with new template (no creation logic)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Update MIG Only'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        source /workspace/version.env
+        echo "Updating MIG with new template..."
+        gcloud compute instance-groups managed set-instance-template vamsi-mig \
+          --template=vamsi-template-$$VERSION_TAG \
+          --zone=asia-east1-b
+        gcloud compute instance-groups managed rolling-action restart vamsi-mig \
+          --zone=asia-east1-b
 
 
  
