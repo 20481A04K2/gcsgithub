@@ -170,7 +170,7 @@ steps:
           --zone=asia-east1-b \
           --min-num-replicas=1 \
           --max-num-replicas=5 \
-          --target-cpu-utilization=0.10 \
+          --target-cpu-utilization=0.60 \
           --cool-down-period=60s \
           --project=enhub-cloud-interns
 
@@ -215,12 +215,27 @@ steps:
     args:
       - '-c'
       - |
-        echo "Attaching MIG to global backend service..."
-        gcloud compute backend-services add-backend vamsi-backend-service \
-          --instance-group=vamsi-mig \
-          --instance-group-zone=asia-east1-b \
-          --global \
-          --project=enhub-cloud-interns
+          MIG_URL="https://www.googleapis.com/compute/v1/projects/enhub-cloud-interns/zones/asia-east1-b/instanceGroups/vamsi-mig"
+          echo "Checking if MIG is already attached..."
+          
+          # Check if MIG is already part of the backend service
+          ATTACHED_GROUPS=$(gcloud compute backend-services describe vamsi-backend-service \
+            --global \
+            --project=enhub-cloud-interns \
+            --format="value(backends[].group)")
+          
+          # If MIG is already attached, skip adding it
+          if echo "$$ATTACHED_GROUPS" | grep -Fxq "$$MIG_URL"; then
+            echo "MIG already attached to backend service."
+          else
+            echo "MIG not attached, proceeding with attachment..."
+            gcloud compute backend-services add-backend vamsi-backend-service \
+              --instance-group=vamsi-mig \
+              --instance-group-zone=asia-east1-b \
+              --global \
+              --project=enhub-cloud-interns || true
+          fi
+
 
   # Step 15: Create global URL map
   - name: 'gcr.io/cloud-builders/gcloud'
