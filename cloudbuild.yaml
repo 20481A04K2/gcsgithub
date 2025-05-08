@@ -111,6 +111,8 @@ steps:
             --max-surge=0 \
             --max-unavailable=5 \
             --min-ready=0s
+        fi
+
 
 
 
