@@ -83,13 +83,13 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
-# Step 5: Create or replace all MIG instances with new template
-- name: 'gcr.io/cloud-builders/gcloud'
-  id: 'Create or Replace All MIG Instances'
-  entrypoint: 'bash'
-  args:
-    - -c
-    - |
+  # Step 5: Create or replace all MIG instances with new template
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Create or Replace All MIG Instances'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
         source /workspace/version.env
         if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
           echo "Creating MIG..."
@@ -111,6 +111,7 @@ steps:
             --max-surge=0 \
             --max-unavailable=5 \
             --min-ready=0s
+
 
 
 
