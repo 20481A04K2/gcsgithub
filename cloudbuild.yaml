@@ -83,29 +83,36 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
-  # Step 5: Create or update MIG (Zonal, fixed)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'Create or Update MIG'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        source /workspace/version.env
-        if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
-          echo "Creating MIG..."
-          gcloud compute instance-groups managed create vamsi-mig \
-            --base-instance-name=vamsi-instance \
-            --template=vamsi-template-$$VERSION_TAG \
-            --size=1 \
-            --zone=asia-east1-b
-        else
-          echo "Updating MIG with new template..."
-          gcloud compute instance-groups managed set-instance-template vamsi-mig \
-            --template=vamsi-template-$$VERSION_TAG \
-            --zone=asia-east1-b
-          gcloud compute instance-groups managed rolling-action restart vamsi-mig \
-            --zone=asia-east1-b
-        fi
+# Step 5: Create or update MIG (Zonal, fixed)
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Create or Replace All MIG Instances'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      source /workspace/version.env
+      if ! gcloud compute instance-groups managed describe vamsi-mig --zone=asia-east1-b > /dev/null 2>&1; then
+        echo "Creating MIG..."
+        gcloud compute instance-groups managed create vamsi-mig \
+          --base-instance-name=vamsi-instance \
+          --template=vamsi-template-$${VERSION_TAG} \
+          --size=5 \
+          --zone=asia-east1-b
+      else
+        echo "Replacing all MIG instances with new template..."
+        gcloud compute instance-groups managed set-instance-template vamsi-mig \
+          --template=vamsi-template-$${VERSION_TAG} \
+          --zone=asia-east1-b
+
+        gcloud compute instance-groups managed rolling-action replace vamsi-mig \
+          --zone=asia-east1-b \
+          --version=template=vamsi-template-$${VERSION_TAG} \
+          --type=proactive \
+          --max-surge=0 \
+          --max-unavailable=5 \
+          --min-ready=0s
+      fi
+
 
   # Step 6: Firewall rule
   - name: 'gcr.io/cloud-builders/gcloud'
