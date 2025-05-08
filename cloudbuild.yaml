@@ -101,16 +101,15 @@ steps:
         else
           echo "Replacing all MIG instances with new template..."
           gcloud compute instance-groups managed set-instance-template vamsi-mig \
-            --template=vamsi-template-$$VERSION_TAG \
+           --template=vamsi-template-$$VERSION_TAG \
             --zone=asia-east1-b
 
           gcloud compute instance-groups managed rolling-action replace vamsi-mig \
-            --zone=asia-east1-b \
+           --zone=asia-east1-b \
             --version=template=vamsi-template-$$VERSION_TAG \
-            --type=proactive \
             --max-surge=0 \
-            --max-unavailable=5 \
-            --min-ready=0s
+            --max-unavailable=5
+
         fi
 
 
