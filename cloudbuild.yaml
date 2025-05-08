@@ -115,7 +115,6 @@ steps:
 
 
 
-
   # Step 6: Firewall rule
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Firewall'
