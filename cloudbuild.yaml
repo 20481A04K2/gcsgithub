@@ -83,7 +83,7 @@ steps:
           cd gcsgithub-main
           nohup ../venv/bin/python app.py --host=0.0.0.0 --port=8080 > /home/sajja_vamsi/my-app/app.log 2>&1 &"
 
- # Step 7: Create or update MIG (Zonal, fixed)
+  # Step 7: Create or update MIG (Zonal, fixed)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Create or Update MIG'
     entrypoint: 'bash'
@@ -106,7 +106,6 @@ steps:
           gcloud compute instance-groups managed rolling-action restart vamsi-mig \
             --zone=asia-east1-b
         fi
-
 
   # Step 6: Firewall rule
   - name: 'gcr.io/cloud-builders/gcloud'
