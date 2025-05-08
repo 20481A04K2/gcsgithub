@@ -2,10 +2,10 @@ from flask import Flask
 app = Flask(__name__)
 
 @app.route('/')
-def hello_world():
+def hello_world
     return """Hello, World! from github  {
   "db_user": "vamsi",
-  "db_pass": "securepassword-test",
+  "db_pass": "securepassword-rollback",
   "api_key": "your-api-key-value"
 } """
 
