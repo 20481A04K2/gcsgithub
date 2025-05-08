@@ -5,7 +5,7 @@ app = Flask(__name__)
 def hello_world():
     return """Hello, World! from github  {
   "db_user": "vamsi",
-  "db_pass": "securepassword-rollback-2",
+  "db_pass": "securepassword-rollback",
   "api_key": "your-api-key-value"
 } """
 
