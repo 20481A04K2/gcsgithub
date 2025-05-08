@@ -188,6 +188,17 @@ steps:
         else
           echo "Static IP already exists."
         fi
+  # Step 12.5: Set named port on MIG to map 'http' to 8080
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Set Named Port'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud compute instance-groups managed set-named-ports vamsi-mig \
+          --named-ports=http:8080 \
+          --zone=asia-east1-b \
+          --project=enhub-cloud-interns
 
   # Step 13: Create global backend service with EXTERNAL_MANAGED
   - name: 'gcr.io/cloud-builders/gcloud'
